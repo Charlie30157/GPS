@@ -383,8 +383,24 @@ class GPSTracker {
         this.updateStatus(this.recordingStatus, 'Recording: Stopped', false);
         this.startBtn.disabled = false;
         this.stopBtn.disabled = true;
-        
+        this.recordCount = 0;
+        this.updateRecordCount();
         this.log('Stopped GPS recording');
+
+        // Flush CSV file on the server
+        fetch('/api/flush-csv', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    this.log('Previous data flushed from CSV file');
+                    this.updateRecordCount();
+                } else {
+                    this.log('Failed to flush CSV file', 'error');
+                }
+            })
+            .catch(err => {
+                this.log('Error flushing CSV file: ' + err.message, 'error');
+            });
     }
 
     handlePositionUpdate(position) {

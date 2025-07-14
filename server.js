@@ -187,6 +187,29 @@ app.get('/api/data-count', (req, res) => {
     }
 });
 
+// API endpoint to flush (clear) the CSV file except for the header
+app.post('/api/flush-csv', (req, res) => {
+    const headers = [
+        'timestamp',
+        'latitude',
+        'longitude',
+        'altitude',
+        'speed',
+        'heading',
+        'road_name',
+        'road_type',
+        'lanes',
+        'yaw_rate',
+        'hdop',
+        'pdop',
+        'lateral_acceleration',
+        'longitudinal_acceleration',
+        'accuracy'
+    ].join(',');
+    fs.writeFileSync(CSV_FILE, headers + '\n');
+    res.json({ success: true, message: 'CSV file flushed' });
+});
+
 // Serve the main page
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
