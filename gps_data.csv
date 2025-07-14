@@ -1,2 +1,4 @@
-timestamp,latitude,longitude,altitude,speed,heading,road_name,road_type,lanes,yaw_rate,hdop,pdop,lateral_acceleration,longitudinal_acceleration,accuracy
-2025-07-14T07:48:58.092Z,12.93577259531986,77.53452333651775,838.3182540855868,0,0,Error,Error,Error,8.461116156513715,0.77660607651136,3.0746708595135077,-0.1553424569643145,-0.45394652193186236,53.99317013384098
+timestamp,latitude,longitude,altitude,speed,heading,road_name,road_type,lanes,yaw_rate,hdop,pdop,lateral_acceleration,longitudinal_acceleration,accuracy,actual_lane,current_lane
+2025-07-14T09:49:51.478Z,12.935505875109493,77.53435161297807,0,0,0,Error,Error,Error,0,0,0,0,0,0,,
+2025-07-14T09:49:54.482Z,12.935506286405941,77.53439926514856,0,0,0,Error,Error,Error,0,0,0,0,0,0,,
+2025-07-14T09:49:57.491Z,12.935505875109587,77.53435161298889,0,0,0,Error,Error,Error,0,0,0,0,0,0,,

@@ -30,28 +30,31 @@ app.use((req, res, next) => {
 // CSV file path
 const CSV_FILE = 'gps_data.csv';
 
+// CSV headers (now with actual_lane and current_lane)
+const CSV_HEADERS = [
+    'timestamp',
+    'latitude',
+    'longitude',
+    'altitude',
+    'speed',
+    'heading',
+    'road_name',
+    'road_type',
+    'lanes',
+    'yaw_rate',
+    'hdop',
+    'pdop',
+    'lateral_acceleration',
+    'longitudinal_acceleration',
+    'accuracy',
+    'actual_lane',
+    'current_lane'
+];
+
 // Initialize CSV file with headers if it doesn't exist
 function initializeCSV() {
     if (!fs.existsSync(CSV_FILE)) {
-        const headers = [
-            'timestamp',
-            'latitude',
-            'longitude',
-            'altitude',
-            'speed',
-            'heading',
-            'road_name',
-            'road_type',
-            'lanes',
-            'yaw_rate',
-            'hdop',
-            'pdop',
-            'lateral_acceleration',
-            'longitudinal_acceleration',
-            'accuracy'
-        ].join(',');
-        
-        fs.writeFileSync(CSV_FILE, headers + '\n');
+        fs.writeFileSync(CSV_FILE, CSV_HEADERS.join(',') + '\n');
         console.log('CSV file initialized with headers');
     }
 }
@@ -122,11 +125,13 @@ function saveToCSV(data) {
         data.pdop,
         data.lateral_acceleration,
         data.longitudinal_acceleration,
-        data.accuracy
+        data.accuracy,
+        data.actual_lane || '',
+        data.current_lane || ''
     ].join(',');
     
     fs.appendFileSync(CSV_FILE, csvLine + '\n');
-    console.log('Data saved to CSV:', data.timestamp);
+    console.log('Data saved to CSV:', data.timestamp, 'Actual Lane:', data.actual_lane, 'Current Lane:', data.current_lane);
 }
 
 // API endpoint to receive GPS data
@@ -153,7 +158,9 @@ app.post('/api/gps-data', async (req, res) => {
             pdop: gpsData.pdop || 0,
             lateral_acceleration: gpsData.lateral_acceleration || 0,
             longitudinal_acceleration: gpsData.longitudinal_acceleration || 0,
-            accuracy: gpsData.accuracy || 0
+            accuracy: gpsData.accuracy || 0,
+            actual_lane: gpsData.actual_lane || '',
+            current_lane: gpsData.current_lane || ''
         };
         
         // Save to CSV
@@ -204,7 +211,9 @@ app.post('/api/flush-csv', (req, res) => {
         'pdop',
         'lateral_acceleration',
         'longitudinal_acceleration',
-        'accuracy'
+        'accuracy',
+        'actual_lane',
+        'current_lane'
     ].join(',');
     fs.writeFileSync(CSV_FILE, headers + '\n');
     res.json({ success: true, message: 'CSV file flushed' });

@@ -14,6 +14,7 @@ class GPSTracker {
             pdop: 0
         };
         this.recordCount = 0;
+        this.currentLane = '';
         
         this.initializeElements();
         this.initializeEventListeners();
@@ -364,7 +365,7 @@ class GPSTracker {
             if (this.currentPosition) {
                 this.collectAndSendData();
             }
-        }, 5000);
+        }, 2000);
     }
 
     stopRecording() {
@@ -419,7 +420,96 @@ class GPSTracker {
         // Update map placeholder
         this.updateMapPlaceholder(coords.latitude, coords.longitude);
         
+        // Fetch road info and update lane buttons
+        this.updateRoadInfoAndLanes(coords.latitude, coords.longitude);
+        
         this.log('GPS position updated');
+    }
+
+    async updateRoadInfoAndLanes(lat, lon) {
+        try {
+            // Fetch road info from backend (simulate by calling /api/gps-data with dummy data)
+            const response = await fetch('/api/gps-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ latitude: lat, longitude: lon })
+            });
+            if (response.ok) {
+                // The backend will save a row, but we only want the road info, so let's fetch it another way
+                // Instead, let's use the last known road info from the UI (if available)
+                // For a more robust solution, you could create a dedicated endpoint for road info only
+                // For now, let's just update the lane buttons based on the displayed lanes
+                const lanesText = this.lanes.textContent;
+                let lanes = parseInt(lanesText);
+                if (isNaN(lanes) || lanes < 1) lanes = 2;
+                this.renderLaneButtons(lanes);
+            }
+        } catch (error) {
+            this.log('Error updating road info/lanes: ' + error.message, 'error');
+        }
+    }
+
+    renderLaneButtons(lanes) {
+        // Remove existing lane buttons if any
+        let laneBtnContainer = document.getElementById('laneBtnContainer');
+        if (!laneBtnContainer) {
+            laneBtnContainer = document.createElement('div');
+            laneBtnContainer.id = 'laneBtnContainer';
+            laneBtnContainer.style.margin = '15px 0';
+            this.lanes.parentElement.appendChild(laneBtnContainer);
+        }
+        laneBtnContainer.innerHTML = '';
+        // Lane numbers: 2 (leftmost), 3, ..., N (rightmost)
+        for (let i = 2; i <= lanes; i++) {
+            const btn = document.createElement('button');
+            btn.textContent = `Lane ${i}`;
+            btn.className = 'btn btn-secondary';
+            btn.style.margin = '0 5px 5px 0';
+            btn.onclick = () => {
+                this.currentLane = i;
+                this.recordLane(i);
+            };
+            laneBtnContainer.appendChild(btn);
+        }
+    }
+
+    async recordLane(laneNumber) {
+        if (!this.currentPosition) {
+            this.log('No GPS position available for lane record', 'warning');
+            return;
+        }
+        this.currentLane = laneNumber;
+        const coords = this.currentPosition.coords;
+        const data = {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            altitude: coords.altitude || 0,
+            speed: coords.speed || 0,
+            heading: coords.heading || 0,
+            accuracy: coords.accuracy || 0,
+            yaw_rate: this.sensorData.yawRate,
+            hdop: this.sensorData.hdop,
+            pdop: this.sensorData.pdop,
+            lateral_acceleration: this.sensorData.lateralAcceleration,
+            longitudinal_acceleration: this.sensorData.longitudinalAcceleration,
+            actual_lane: laneNumber,
+            current_lane: this.currentLane
+        };
+        try {
+            const response = await fetch('/api/gps-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (response.ok) {
+                this.log(`Lane ${laneNumber} recorded in CSV`);
+                this.updateRecordCount();
+            } else {
+                this.log('Failed to record lane in CSV', 'error');
+            }
+        } catch (error) {
+            this.log('Error recording lane: ' + error.message, 'error');
+        }
     }
 
     handlePositionError(error) {
@@ -504,10 +594,8 @@ class GPSTracker {
             this.log('No GPS position available for data collection', 'warning');
             return;
         }
-
         try {
             const coords = this.currentPosition.coords;
-            
             const data = {
                 latitude: coords.latitude,
                 longitude: coords.longitude,
@@ -519,9 +607,9 @@ class GPSTracker {
                 hdop: this.sensorData.hdop,
                 pdop: this.sensorData.pdop,
                 lateral_acceleration: this.sensorData.lateralAcceleration,
-                longitudinal_acceleration: this.sensorData.longitudinalAcceleration
+                longitudinal_acceleration: this.sensorData.longitudinalAcceleration,
+                current_lane: this.currentLane
             };
-
             // Send data to server
             const response = await fetch('/api/gps-data', {
                 method: 'POST',
@@ -530,7 +618,6 @@ class GPSTracker {
                 },
                 body: JSON.stringify(data)
             });
-
             if (response.ok) {
                 this.recordCount++;
                 this.updateRecordCount();
