@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>GPS System Test Page</h1>
+    
+    <div class="test-section">
+        <h2>Network Connection Test</h2>
+        <button onclick="testConnection()">Test Server Connection</button>
+        <div id="connectionStatus"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>GPS Permission Test</h2>
+        <button onclick="testGPS()">Test GPS Access</button>
+        <div id="gpsStatus"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Motion Sensor Test</h2>
+        <button onclick="testMotion()">Test Motion Sensors</button>
+        <div id="motionStatus"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Device Info</h2>
+        <div id="deviceInfo"></div>
+    </div>
+
+    <script>
+        // Display device info
+        function showDeviceInfo() {
+            const info = document.getElementById('deviceInfo');
+            info.innerHTML = `
+                <p><strong>User Agent:</strong> ${navigator.userAgent}</p>
+                <p><strong>Platform:</strong> ${navigator.platform}</p>
+                <p><strong>Language:</strong> ${navigator.language}</p>
+                <p><strong>Online:</strong> ${navigator.onLine ? 'Yes' : 'No'}</p>
+                <p><strong>Geolocation:</strong> ${'geolocation' in navigator ? 'Available' : 'Not Available'}</p>
+                <p><strong>Device Motion:</strong> ${'DeviceMotionEvent' in window ? 'Available' : 'Not Available'}</p>
+                <p><strong>Device Orientation:</strong> ${'DeviceOrientationEvent' in window ? 'Available' : 'Not Available'}</p>
+            `;
+        }
+
+        // Test server connection
+        async function testConnection() {
+            const status = document.getElementById('connectionStatus');
+            status.innerHTML = '<div class="info">Testing connection...</div>';
+            
+            try {
+                const response = await fetch('/api/data-count');
+                if (response.ok) {
+                    const data = await response.json();
+                    status.innerHTML = `<div class="success">✅ Connection successful! Records: ${data.count}</div>`;
+                } else {
+                    status.innerHTML = `<div class="error">❌ Connection failed: ${response.status}</div>`;
+                }
+            } catch (error) {
+                status.innerHTML = `<div class="error">❌ Connection error: ${error.message}</div>`;
+            }
+        }
+
+        // Test GPS
+        function testGPS() {
+            const status = document.getElementById('gpsStatus');
+            
+            if (!('geolocation' in navigator)) {
+                status.innerHTML = '<div class="error">❌ GPS not available</div>';
+                return;
+            }
+            
+            status.innerHTML = '<div class="info">Requesting GPS permission...</div>';
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    status.innerHTML = `
+                        <div class="success">
+                            ✅ GPS working!<br>
+                            Lat: ${position.coords.latitude}<br>
+                            Lon: ${position.coords.longitude}<br>
+                            Accuracy: ${position.coords.accuracy}m
+                        </div>
+                    `;
+                },
+                (error) => {
+                    let errorMsg = 'GPS Error: ';
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg += 'Permission denied';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg += 'Position unavailable';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg += 'Timeout';
+                            break;
+                        default:
+                            errorMsg += 'Unknown error';
+                    }
+                    status.innerHTML = `<div class="error">❌ ${errorMsg}</div>`;
+                },
+                { timeout: 10000, enableHighAccuracy: true }
+            );
+        }
+
+        // Test motion sensors
+        async function testMotion() {
+            const status = document.getElementById('motionStatus');
+            
+            if (!('DeviceMotionEvent' in window)) {
+                status.innerHTML = '<div class="error">❌ Motion sensors not available</div>';
+                return;
+            }
+            
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                status.innerHTML = '<div class="info">Requesting motion sensor permission...</div>';
+                
+                try {
+                    const permission = await DeviceMotionEvent.requestPermission();
+                    if (permission === 'granted') {
+                        status.innerHTML = '<div class="success">✅ Motion sensor permission granted!</div>';
+                        
+                        // Test the sensor
+                        window.addEventListener('devicemotion', (event) => {
+                            if (event.accelerationIncludingGravity) {
+                                status.innerHTML = `
+                                    <div class="success">
+                                        ✅ Motion sensors working!<br>
+                                        X: ${event.accelerationIncludingGravity.x}<br>
+                                        Y: ${event.accelerationIncludingGravity.y}<br>
+                                        Z: ${event.accelerationIncludingGravity.z}
+                                    </div>
+                                `;
+                            }
+                        }, { once: true });
+                    } else {
+                        status.innerHTML = '<div class="error">❌ Motion sensor permission denied</div>';
+                    }
+                } catch (error) {
+                    status.innerHTML = `<div class="error">❌ Motion sensor error: ${error.message}</div>`;
+                }
+            } else {
+                status.innerHTML = '<div class="success">✅ Motion sensors available (no permission needed)</div>';
+            }
+        }
+
+        // Initialize
+        showDeviceInfo();
+    </script>
+</body>
+</html> 

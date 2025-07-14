@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="GPS Tracker">
+    <title>GPS Tracking System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1><i class="fas fa-satellite"></i> GPS Tracking System</h1>
+            <p>Real-time GPS data collection with road information and sensor data</p>
+        </header>
+
+        <!-- Status Section -->
+        <section class="status-section">
+            <div class="status-card">
+                <div class="status-indicator" id="gpsStatus">
+                    <i class="fas fa-circle"></i>
+                    <span>GPS: Waiting for permission</span>
+                </div>
+                <div class="status-indicator" id="sensorStatus">
+                    <i class="fas fa-circle"></i>
+                    <span>Sensors: Checking availability</span>
+                </div>
+                <div class="status-indicator" id="recordingStatus">
+                    <i class="fas fa-circle"></i>
+                    <span>Recording: Stopped</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Control Section -->
+        <section class="control-section">
+            <div class="control-buttons">
+                <button id="startBtn" class="btn btn-primary">
+                    <i class="fas fa-play"></i> Start Recording
+                </button>
+                <button id="stopBtn" class="btn btn-danger" disabled>
+                    <i class="fas fa-stop"></i> Stop Recording
+                </button>
+                <button id="downloadBtn" class="btn btn-secondary">
+                    <i class="fas fa-download"></i> Download CSV
+                </button>
+            </div>
+            <div class="data-counter">
+                <span>Records collected: <strong id="recordCount">0</strong></span>
+            </div>
+        </section>
+
+        <!-- Data Display Section -->
+        <section class="data-section">
+            <div class="data-grid">
+                <!-- GPS Data -->
+                <div class="data-card">
+                    <h3><i class="fas fa-map-marker-alt"></i> GPS Data</h3>
+                    <div class="data-item">
+                        <label>Latitude:</label>
+                        <span id="latitude">--</span>
+                    </div>
+                    <div class="data-item">
+                        <label>Longitude:</label>
+                        <span id="longitude">--</span>
+                    </div>
+                    <div class="data-item">
+                        <label>Altitude:</label>
+                        <span id="altitude">--</span>
+                    </div>
+                    <div class="data-item">
+                        <label>Speed:</label>
+                        <span id="speed">--</span>
+                    </div>
+                    <div class="data-item">
+                        <label>Heading:</label>
+                        <span id="heading">--</span>
+                    </div>
+                    <div class="data-item">
+                        <label>Accuracy:</label>
+                        <span id="accuracy">--</span>
+                    </div>
+                </div>
+
+                <!-- Road Information -->
+                <div class="data-card">
+                    <h3><i class="fas fa-road"></i> Road Information</h3>
+                    <div class="data-item">
+                        <label>Road Name:</label>
+                        <span id="roadName">--</span>
+                    </div>
+                    <div class="data-item">
+                        <label>Road Type:</label>
+                        <span id="roadType">--</span>
+                    </div>
+                    <div class="data-item">
+                        <label>Lanes:</label>
+                        <span id="lanes">--</span>
+                    </div>
+                </div>
+
+                <!-- Sensor Data -->
+                <div class="data-card">
+                    <h3><i class="fas fa-microchip"></i> Sensor Data</h3>
+                    <div class="data-item">
+                        <label>Yaw Rate:</label>
+                        <span id="yawRate">--</span>
+                    </div>
+                    <div class="data-item">
+                        <label>HDOP:</label>
+                        <span id="hdop">--</span>
+                    </div>
+                    <div class="data-item">
+                        <label>PDOP:</label>
+                        <span id="pdop">--</span>
+                    </div>
+                    <div class="data-item">
+                        <label>Lateral Accel:</label>
+                        <span id="lateralAccel">--</span>
+                    </div>
+                    <div class="data-item">
+                        <label>Longitudinal Accel:</label>
+                        <span id="longitudinalAccel">--</span>
+                    </div>
+                </div>
+
+                <!-- Map Preview -->
+                <div class="data-card map-card">
+                    <h3><i class="fas fa-map"></i> Location Map</h3>
+                    <div id="map" class="map-container">
+                        <div class="map-placeholder">
+                            <i class="fas fa-map-marked-alt"></i>
+                            <p>Map will appear here when GPS is active</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Log Section -->
+        <section class="log-section">
+            <h3><i class="fas fa-list"></i> Activity Log</h3>
+            <div id="logContainer" class="log-container">
+                <div class="log-entry">
+                    <span class="log-time">System ready</span>
+                    <span class="log-message">GPS Tracking System initialized</span>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Instructions Modal -->
+    <div id="instructionsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-info-circle"></i> How to Use</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <h3>Getting Started:</h3>
+                <ol>
+                    <li><strong>Allow Location Access:</strong> When prompted, allow the browser to access your location</li>
+                    <li><strong>Allow Motion Sensors:</strong> On mobile devices, allow access to device motion sensors</li>
+                    <li><strong>Start Recording:</strong> Click "Start Recording" to begin collecting data</li>
+                    <li><strong>Data Collection:</strong> The system will automatically collect data every 5 seconds</li>
+                    <li><strong>Download Data:</strong> Click "Download CSV" to get your collected data</li>
+                </ol>
+                
+                <h3>Data Collected:</h3>
+                <ul>
+                    <li><strong>GPS:</strong> Latitude, longitude, altitude, speed, heading, accuracy</li>
+                    <li><strong>Road Info:</strong> Road name, type, and number of lanes</li>
+                    <li><strong>Sensors:</strong> Yaw rate, HDOP, PDOP, lateral and longitudinal acceleration</li>
+                </ul>
+                
+                <h3>Mobile vs Desktop:</h3>
+                <ul>
+                    <li><strong>Mobile:</strong> Full sensor access, GPS, and motion sensors</li>
+                    <li><strong>Desktop:</strong> GPS access (if available), limited sensor data</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Button -->
+    <button id="helpBtn" class="help-btn">
+        <i class="fas fa-question-circle"></i>
+    </button>
+
+    <script src="script.js"></script>
+</body>
+</html> 

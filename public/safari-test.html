@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Safari GPS Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            background: #f8f9fa;
+            margin: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .test-card {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        
+        button {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 5px;
+            width: 100%;
+        }
+        button:active { background: #0056b3; }
+        button:disabled { background: #6c757d; opacity: 0.6; }
+        
+        .data-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 14px;
+        }
+        
+        .instructions {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Safari GPS Test</h1>
+        
+        <div class="instructions">
+            <h3>🔧 Before Testing:</h3>
+            <ol>
+                <li><strong>Settings → Privacy & Security → Location Services → Safari → "While Using"</strong></li>
+                <li><strong>Settings → Safari → Motion & Orientation Access → "Allow"</strong></li>
+                <li><strong>Settings → Safari → Clear History and Website Data</strong></li>
+            </ol>
+        </div>
+        
+        <div class="test-card">
+            <h2>📍 GPS Test</h2>
+            <button onclick="testGPS()">Test GPS Location</button>
+            <div id="gpsStatus"></div>
+            <div id="gpsData" class="data-display" style="display: none;"></div>
+        </div>
+        
+        <div class="test-card">
+            <h2>📱 Motion Sensors Test</h2>
+            <button onclick="testMotion()">Test Motion Sensors</button>
+            <div id="motionStatus"></div>
+            <div id="motionData" class="data-display" style="display: none;"></div>
+        </div>
+        
+        <div class="test-card">
+            <h2>🌐 Network Test</h2>
+            <button onclick="testNetwork()">Test Server Connection</button>
+            <div id="networkStatus"></div>
+        </div>
+        
+        <div class="test-card">
+            <h2>📊 Device Info</h2>
+            <div id="deviceInfo"></div>
+        </div>
+    </div>
+
+    <script>
+        // Show device info
+        function showDeviceInfo() {
+            const info = document.getElementById('deviceInfo');
+            info.innerHTML = `
+                <p><strong>Browser:</strong> ${navigator.userAgent.includes('Safari') ? 'Safari' : 'Other'}</p>
+                <p><strong>Platform:</strong> ${navigator.platform}</p>
+                <p><strong>Online:</strong> ${navigator.onLine ? '✅ Yes' : '❌ No'}</p>
+                <p><strong>Geolocation:</strong> ${'geolocation' in navigator ? '✅ Available' : '❌ Not Available'}</p>
+                <p><strong>Device Motion:</strong> ${'DeviceMotionEvent' in window ? '✅ Available' : '❌ Not Available'}</p>
+                <p><strong>Device Orientation:</strong> ${'DeviceOrientationEvent' in window ? '✅ Available' : '❌ Not Available'}</p>
+            `;
+        }
+
+        // Test GPS with better error handling
+        function testGPS() {
+            const status = document.getElementById('gpsStatus');
+            const data = document.getElementById('gpsData');
+            
+            if (!('geolocation' in navigator)) {
+                status.innerHTML = '<div class="error">❌ GPS not available in this browser</div>';
+                return;
+            }
+            
+            status.innerHTML = '<div class="info">📍 Requesting GPS permission...</div>';
+            
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0
+            };
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const coords = position.coords;
+                    status.innerHTML = '<div class="success">✅ GPS working perfectly!</div>';
+                    
+                    data.style.display = 'block';
+                    data.innerHTML = `
+                        <strong>Location Data:</strong><br>
+                        Latitude: ${coords.latitude.toFixed(6)}°<br>
+                        Longitude: ${coords.longitude.toFixed(6)}°<br>
+                        Accuracy: ${coords.accuracy.toFixed(1)} meters<br>
+                        ${coords.altitude ? `Altitude: ${coords.altitude.toFixed(1)} meters<br>` : ''}
+                        ${coords.speed ? `Speed: ${(coords.speed * 3.6).toFixed(1)} km/h<br>` : ''}
+                        ${coords.heading ? `Heading: ${coords.heading.toFixed(1)}°<br>` : ''}
+                        Timestamp: ${new Date(position.timestamp).toLocaleString()}
+                    `;
+                },
+                (error) => {
+                    let errorMsg = '';
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg = '❌ Permission denied. Go to Settings → Privacy & Security → Location Services → Safari → "While Using"';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg = '❌ Position unavailable. Try moving to an open area.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg = '❌ GPS timeout. Try again.';
+                            break;
+                        default:
+                            errorMsg = '❌ Unknown GPS error.';
+                    }
+                    status.innerHTML = `<div class="error">${errorMsg}</div>`;
+                },
+                options
+            );
+        }
+
+        // Test motion sensors with iOS-specific handling
+        async function testMotion() {
+            const status = document.getElementById('motionStatus');
+            const data = document.getElementById('motionData');
+            
+            if (!('DeviceMotionEvent' in window)) {
+                status.innerHTML = '<div class="error">❌ Motion sensors not available</div>';
+                return;
+            }
+            
+            // iOS requires permission
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                status.innerHTML = '<div class="info">📱 Requesting motion sensor permission...</div>';
+                
+                try {
+                    const permission = await DeviceMotionEvent.requestPermission();
+                    if (permission === 'granted') {
+                        status.innerHTML = '<div class="success">✅ Motion sensors permission granted!</div>';
+                        startMotionTracking();
+                    } else {
+                        status.innerHTML = '<div class="error">❌ Motion sensor permission denied. Go to Settings → Safari → Motion & Orientation Access → "Allow"</div>';
+                    }
+                } catch (error) {
+                    status.innerHTML = `<div class="error">❌ Motion sensor error: ${error.message}</div>`;
+                }
+            } else {
+                // Non-iOS device
+                status.innerHTML = '<div class="success">✅ Motion sensors available (no permission needed)</div>';
+                startMotionTracking();
+            }
+            
+            function startMotionTracking() {
+                let motionCount = 0;
+                
+                window.addEventListener('devicemotion', (event) => {
+                    motionCount++;
+                    const accel = event.accelerationIncludingGravity || {};
+                    
+                    data.style.display = 'block';
+                    data.innerHTML = `
+                        <strong>Motion Data (Update #${motionCount}):</strong><br>
+                        X: ${(accel.x || 0).toFixed(2)} m/s²<br>
+                        Y: ${(accel.y || 0).toFixed(2)} m/s²<br>
+                        Z: ${(accel.z || 0).toFixed(2)} m/s²<br>
+                        Time: ${new Date().toLocaleTimeString()}
+                    `;
+                });
+                
+                status.innerHTML = '<div class="success">✅ Motion sensors active! Move your phone to see data.</div>';
+            }
+        }
+
+        // Test network connection
+        async function testNetwork() {
+            const status = document.getElementById('networkStatus');
+            status.innerHTML = '<div class="info">🌐 Testing server connection...</div>';
+            
+            try {
+                const response = await fetch('/api/data-count');
+                if (response.ok) {
+                    const data = await response.json();
+                    status.innerHTML = `<div class="success">✅ Server connected! Records: ${data.count}</div>`;
+                } else {
+                    status.innerHTML = `<div class="error">❌ Server error: ${response.status}</div>`;
+                }
+            } catch (error) {
+                status.innerHTML = `<div class="error">❌ Network error: ${error.message}</div>`;
+            }
+        }
+
+        // Initialize
+        showDeviceInfo();
+    </script>
+</body>
+</html> 
