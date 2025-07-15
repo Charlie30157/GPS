@@ -60,21 +60,17 @@ function initializeCSV() {
 }
 
 // Get road information from OpenStreetMap
-async function getRoadInfo(lat, lon) {
+async function getRoadInfo(lat, lon, retries = 3) {
     return new Promise((resolve) => {
         const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
-        
-        https.get(url, (res) => {
+        const request = https.get(url, { timeout: 5000 }, (res) => {
             let data = '';
-            
             res.on('data', (chunk) => {
                 data += chunk;
             });
-            
             res.on('end', () => {
                 try {
                     const jsonData = JSON.parse(data);
-                    
                     if (jsonData.address) {
                         resolve({
                             road_name: jsonData.address.road || jsonData.address.highway || 'Unknown',
@@ -97,13 +93,38 @@ async function getRoadInfo(lat, lon) {
                     });
                 }
             });
-        }).on('error', (error) => {
+        });
+
+        request.on('error', (error) => {
             console.error('Error fetching road info:', error);
-            resolve({
-                road_name: 'Error',
-                road_type: 'Error',
-                lanes: 'Error'
-            });
+            if (retries > 0) {
+                // Retry after a short delay
+                setTimeout(() => {
+                    getRoadInfo(lat, lon, retries - 1).then(resolve);
+                }, 500);
+            } else {
+                resolve({
+                    road_name: 'Error',
+                    road_type: 'Error',
+                    lanes: 'Error'
+                });
+            }
+        });
+
+        request.on('timeout', () => {
+            request.destroy();
+            console.error('Timeout fetching road info');
+            if (retries > 0) {
+                setTimeout(() => {
+                    getRoadInfo(lat, lon, retries - 1).then(resolve);
+                }, 500);
+            } else {
+                resolve({
+                    road_name: 'Timeout',
+                    road_type: 'Timeout',
+                    lanes: 'Timeout'
+                });
+            }
         });
     });
 }
@@ -231,4 +252,4 @@ app.listen(PORT, HOST, () => {
     console.log(`Local access: http://localhost:${PORT}`);
     // console.log(`Network access: http://192.168.1.100:${PORT}`);
     // console.log(`Mobile access: http://192.168.1.100:${PORT}`);
-}); 
+});
