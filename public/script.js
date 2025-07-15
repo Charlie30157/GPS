@@ -15,6 +15,8 @@ class GPSTracker {
         };
         this.recordCount = 0;
         this.currentLane = '';
+        this.lastGPSUpdateTime = null;
+        this.wakeLock = null;
         
         this.initializeElements();
         this.initializeEventListeners();
@@ -305,6 +307,23 @@ class GPSTracker {
         window.addEventListener('touchstart', sensorActivationHandler);
     }
 
+    async enableWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                this.wakeLock = await navigator.wakeLock.request('screen');
+                this.log('Wake Lock enabled (screen will stay awake during recording).');
+                this.wakeLock.addEventListener('release', () => {
+                    this.log('Wake Lock was released.');
+                    this.wakeLock = null;
+                });
+            } catch (err) {
+                this.log('Wake Lock failed: ' + err.message, 'warning');
+            }
+        } else {
+            this.log('Wake Lock API not supported on this device/browser.', 'warning');
+        }
+    }
+
     async startRecording() {
         try {
             // Request sensor permission if needed
@@ -329,11 +348,13 @@ class GPSTracker {
                         this.log('GPS test successful - starting continuous tracking');
                         this.handlePositionUpdate(position);
                         this.startContinuousTracking(options);
+                        this.enableWakeLock();
                     },
                     (error) => {
                         this.log('GPS test failed - trying continuous tracking anyway');
                         this.handlePositionError(error);
                         this.startContinuousTracking(options);
+                        this.enableWakeLock();
                     },
                     { ...options, timeout: 15000 }
                 );
@@ -360,15 +381,27 @@ class GPSTracker {
         
         this.log('Started continuous GPS tracking');
         
-        // Start periodic data collection (every 5 seconds)
+        // Start periodic data collection (every 2 seconds) with watchdog logic
         this.recordingInterval = setInterval(() => {
+            const now = Date.now();
             if (this.currentPosition) {
                 this.collectAndSendData();
+            }
+            if (this.lastGPSUpdateTime && (now - this.lastGPSUpdateTime > 15000)) {
+                this.log('No GPS updates in last 15s. Restarting GPS tracking...', 'warning');
+                navigator.geolocation.clearWatch(this.watchId);
+                this.startContinuousTracking(options);
             }
         }, 2000);
     }
 
     stopRecording() {
+        if (this.wakeLock) {
+            try {
+                this.wakeLock.release();
+            } catch (e) {}
+            this.wakeLock = null;
+        }
         this.isRecording = false;
         
         if (this.watchId) {
@@ -384,27 +417,12 @@ class GPSTracker {
         this.updateStatus(this.recordingStatus, 'Recording: Stopped', false);
         this.startBtn.disabled = false;
         this.stopBtn.disabled = true;
-        this.recordCount = 0;
-        this.updateRecordCount();
         this.log('Stopped GPS recording');
-
-        // Flush CSV file on the server
-        fetch('/api/flush-csv', { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    this.log('Previous data flushed from CSV file');
-                    this.updateRecordCount();
-                } else {
-                    this.log('Failed to flush CSV file', 'error');
-                }
-            })
-            .catch(err => {
-                this.log('Error flushing CSV file: ' + err.message, 'error');
-            });
+        // Do NOT flush CSV automatically here
     }
 
     handlePositionUpdate(position) {
+        this.lastGPSUpdateTime = Date.now();
         this.currentPosition = position;
         
         const coords = position.coords;
@@ -435,10 +453,8 @@ class GPSTracker {
                 body: JSON.stringify({ latitude: lat, longitude: lon })
             });
             if (response.ok) {
-                // The backend will save a row, but we only want the road info, so let's fetch it another way
-                // Instead, let's use the last known road info from the UI (if available)
-                // For a more robust solution, you could create a dedicated endpoint for road info only
-                // For now, let's just update the lane buttons based on the displayed lanes
+                // Try to get lanes info from response if available
+                // Otherwise, fallback to UI
                 const lanesText = this.lanes.textContent;
                 let lanes = parseInt(lanesText);
                 if (isNaN(lanes) || lanes < 1) lanes = 2;
@@ -450,7 +466,6 @@ class GPSTracker {
     }
 
     renderLaneButtons(lanes) {
-        // Remove existing lane buttons if any
         let laneBtnContainer = document.getElementById('laneBtnContainer');
         if (!laneBtnContainer) {
             laneBtnContainer = document.createElement('div');
@@ -459,14 +474,20 @@ class GPSTracker {
             this.lanes.parentElement.appendChild(laneBtnContainer);
         }
         laneBtnContainer.innerHTML = '';
-        // Lane numbers: 2 (leftmost), 3, ..., N (rightmost)
-        for (let i = 2; i <= lanes; i++) {
+        // Lane numbers: 1 (leftmost), 2, ..., N (rightmost)
+        for (let i = 1; i <= lanes; i++) {
             const btn = document.createElement('button');
             btn.textContent = `Lane ${i}`;
             btn.className = 'btn btn-secondary';
             btn.style.margin = '0 5px 5px 0';
+            if (this.currentLane == i) {
+                btn.classList.add('active');
+                btn.style.backgroundColor = '#667eea';
+                btn.style.color = '#fff';
+            }
             btn.onclick = () => {
                 this.currentLane = i;
+                this.renderLaneButtons(lanes); // highlight selected
                 this.recordLane(i);
             };
             laneBtnContainer.appendChild(btn);
@@ -504,6 +525,7 @@ class GPSTracker {
             if (response.ok) {
                 this.log(`Lane ${laneNumber} recorded in CSV`);
                 this.updateRecordCount();
+                this.renderLaneButtons(parseInt(this.lanes.textContent) || 2); // keep highlight
             } else {
                 this.log('Failed to record lane in CSV', 'error');
             }
@@ -576,6 +598,11 @@ class GPSTracker {
         
         this.log(errorMessage + userHelp, 'error');
         this.updateStatus(this.gpsStatus, 'GPS: Error', false);
+
+        setTimeout(() => {
+            this.log('Retrying GPS after error...');
+            this.startContinuousTracking({ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+        }, 5000);
 
         // Show a retry button in the log
         const retryBtn = document.createElement('button');
@@ -750,4 +777,4 @@ class GPSTracker {
 // Initialize the GPS Tracker when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     new GPSTracker();
-}); 
+});
